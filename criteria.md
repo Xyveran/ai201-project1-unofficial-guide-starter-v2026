@@ -23,8 +23,7 @@ For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
 **Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+<!-- The test questions are very document-specific, so a single miss on retrieved chunks is acceptable. -->
 
 ---
 
@@ -33,8 +32,7 @@ contains the answer.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+<!-- Every answer generated needs to be grounded in the retrieved documents. If not, the model is only answering from training data or hallucinating. -->
 
 ---
 
@@ -50,12 +48,16 @@ in at least 4 of 5 tries.
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
 **Why this target:**
+<!-- Making model calls to try answering a question that the docs don't support is a waste of resources. 4 out of 5 tries is an acceptable success rate for blocking these questions. 
+-->
 <!-- What did your distances look like when you set the cutoff in Milestone 4?
      Was there a clean gap, or did the two groups overlap? -->
 
 ---
 
-## 4. Something about your chunks
+## 4. Chunks contain enough context
+
+At least 2 complete, untruncated sentences are gathered for each collected chunk.
 
 <!-- YOU WRITE THIS ONE.
 
@@ -72,12 +74,13 @@ in at least 4 of 5 tries.
 
 
 **Why this target:**
-
-
+<!-- Less context could lead to providing partial answers or omitting important additional details. 2 sentences is also the least content I saw under any individual heading in the city_guides corpus. -->
 
 ---
 
-## 5. Your choice
+## 5. Speed for user experience
+
+The average end-to-end latency of the 5 test questions should be under 4 seconds.
 
 <!-- YOU WRITE THIS ONE TOO.
 
@@ -90,7 +93,7 @@ in at least 4 of 5 tries.
 
 
 **Why this target:**
-
+<!-- Aiming for an average latency of 4 seconds sets a standard that's quick enough to feel responsive while using. -->
 
 
 ---
