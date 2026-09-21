@@ -1,25 +1,14 @@
 # The Unofficial Guide
 
-<!-- Edwyn Ortiz — City_Guides Corpus -->
-
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
+Edwyn Ortiz — City Guides
 
 ---
 
 # Unit 1
 
 ## What This Does
+
+For this I picked the City Guides corpus, which covers nine towns. This system takes all of the travel guides' information, and makes it searchable. This system answers questions related to visiting, traveling, eating, and things to look out for in and around these towns.
 
 <!-- Three or four sentences. Which corpus you picked, and the kinds of
      questions your system answers. Write it for someone who has never seen
@@ -30,20 +19,21 @@
 ## Chunking Strategy
 
 **Chunk size:** Variable, based on .md headings
+
 **Overlap:** None
 
-<!-- The city_guides markdown documents are long guides centered on a main topic,
-     then separated into focused aspects using headings. Useful information is
-     spread around across the paragraph (or more) that falls under a heading.
-     An arbitrary character count is sure to cross-contaminate the foci,
-     so I decided to use the document's structure to break it into chunks.
-    
-     Going with chunking by heading section and no overlap for now to keep content
-     focused. If an issue arises where some chunks contain too much noise, 
-     I can implement a sliding window approach to divide those large chunks
-     into smaller ones, or even into paragraph-based chunks if appropriate.
+The city_guides markdown documents are long guides centered on a main topic,
+then separated into focused aspects using headings. Useful information is
+spread around across the paragraph (or more) that falls under a heading.
+An arbitrary character count is sure to cross-contaminate the foci,
+so I decided to use the document's structure to break it into chunks.
 
-     Milestone 3. -->
+Going with chunking by heading section and no overlap for now to keep content
+focused. If an issue arises where some chunks contain too much noise, 
+I can implement a sliding window approach to divide those large chunks
+into smaller ones, or even into paragraph-based chunks if appropriate.
+
+<!-- Milestone 3. -->
 
 ## Sample Chunks
 
@@ -156,9 +146,19 @@ Sources retrieved: guide_accessibility.md, guide_eating.md, guide_elder_ness.md,
 
      Milestone 5. -->
 
-**1.**
+**1.** I asked Claude to give me feedback on my acceptance criteria. How they would be tested with only the sentence itself, would two different people score them the same way, and what would have to happen for them to fail. I was able to use the feedback that some of my criteria were vague, and adjust them to be unambiguous.
 
-**2.**
+**2.** I asked Claude to look at my split_documents() implementation, for errors and edge cases. One case, was that my initial function using `chunk_start = doc.text.find("#")` would break if it received a .md file with no headings. The other, was if a heading marker had no non-alphanumeric characters after it to the document end, I would get an out of range IndexError from: 
+
+```
+while not doc.text[chunk_start].isalnum():
+    chunk_start += 1
+```
+
+I hardened the implementation to fix these potential issues. Neither of these would occur from the corpus version used currently, but the system is now more resilent in case more .md documents are added to it.
+
+
+
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
