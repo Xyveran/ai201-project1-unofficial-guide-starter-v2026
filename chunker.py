@@ -33,9 +33,9 @@ class Chunk:
     """One piece of one document."""
 
     text: str
-    source: str        # which file it came from
-    index: int         # which chunk within that file, starting at 0
-    produced_by: str   # the function that made it — cite this in your README
+    source: str  # which file it came from
+    index: int  # which chunk within that file, starting at 0
+    produced_by: str  # the function that made it — cite this in your README
 
     @property
     def label(self) -> str:
@@ -97,7 +97,51 @@ def split_documents(documents: list[Document]) -> list[Chunk]:
       - Would splitting on paragraph breaks keep more thoughts intact than
         splitting on a character count?
     """
-    return fallback_split(documents)
+
+    chunks: list[Chunk] = []
+    for doc in documents:
+
+        chunk_start = doc.text.find("#")
+        if chunk_start == -1 and len(doc.text):
+            Chunk(
+                text=doc.text,
+                source=doc.source,
+                index=count,
+                produced_by="chunker.py::split_documents",
+            )
+
+        chunk_end, count = 0, 0
+
+        while chunk_end > -1:
+            # Locate first character of heading
+            while not doc.text[chunk_start].isalnum() and chunk_start < len(doc.text):
+                chunk_start += 1
+            if chunk_start == len(doc.text):
+                break
+
+            # Stop right before next heading
+            chunk_end = doc.text.find("#", chunk_start) - 1
+
+            # No more headings in current doc
+            if chunk_end < 0:
+                chunk = doc.text[chunk_start : len(doc.text)].strip()
+            # Another heading was located
+            else:
+                chunk = doc.text[chunk_start:chunk_end].strip()
+
+            if chunk:
+                chunks.append(
+                    Chunk(
+                        text=chunk,
+                        source=doc.source,
+                        index=count,
+                        produced_by="chunker.py::split_documents",
+                    )
+                )
+                count += 1
+            chunk_start = chunk_end + 1
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:
