@@ -109,14 +109,19 @@ cards only.
 <!-- One complete question and answer, pasted as text, with the source line
      visible. Milestone 4. -->
 
-**Question:**
+**Question:** What is there to see in Pellew Sands?
 
 **Answer:**
 
 ```
+In Pellew Sands, there is a two-mile beach of hard sand (excellent at low tide and unremarkable at high), municipal gardens behind the seafront, and the surviving half of an 1890s pier that is open and free. 
+
+Source: `guide_pellew_sands.md`
+
+Sources retrieved: guide_accessibility.md, guide_eating.md, guide_elder_ness.md, guide_pellew_sands.md
 ```
 
-**My relevance cutoff:**
+**My relevance cutoff:** 0.65
 
 <!-- The number you set in config.py, and how you got there.
 
@@ -129,7 +134,16 @@ cards only.
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| Where can I get something to eat and drink in Brightwater? | Yes  | 0.547 |
+| Where can I stay while visiting Marchwood? | Yes | 0.457 |
+| What is there to see in Pellew Sands? | Yes | 0.317 |
+| What should I look out for when traveling by bus? | Yes | 0.617 |
+| How can I get around Kestrelford? | Yes | 0.338 |
+| What is the capital of Mongolia? | No | 0.767 |
+| How do I change the oil in a diesel engine? | No | 0.889 |
+| Who won the 1994 World Cup? | No | 0.906 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.838 |
+| How do I write a for loop in Rust? | No | 0.852 |
 
 ## How I Used AI
 
