@@ -187,15 +187,33 @@ I hardened the implementation to fix these potential issues. Neither of these wo
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET  |
+| 2. Every answer names a source | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 4. At least 2 complete, untruncated sentences are gathered for each collected chunk.| 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 5. Average end-to-end latency under 4 seconds | 5 of 5| 4 of 5 | 5 of 5 | 5 of 5 | MISSED |
 
 <!-- Underneath, paste the REAL output for each criterion from one of your
      runs — the actual text your system produced, not a description of it.
      Name the file and function that produced it. -->
+
+### How can I get around Kestrelford?
+- Best distance: 0.3377 (passed the gate)
+- Total time: 0.8118s
+- Retrieval time: 0.1297s 
+- Generation time: 0.6820s
+- Sources retrieved: guide_accessibility.md, guide_kestrelford.md, guide_regional_transport.md, guide_walking.md
+
+| Chunk # | distance | source | preview |
+| 1 | 0.3377 | guide_kestrelford.md | Kestrelford | Kestrelford is a hill town of 12,000, a...|
+| 2 | 0.4772 | guide_walking.md | Seasonal notes | Add four minutes to any Brightwater ...|
+| 3 | 0.4946 | guide_accessibility.md | Difficult | **Kestrelford** is built on a slope and t... |
+| 4 | 0.5103 | guide_regional_transport.md | Driving | Roads are good between the towns and poor o... |
+| 5 | 0.5539 | guide_walking.md | Easy, on good surfaces | The **Brightwater river path... |
+
+```
+There is no transport within the town of Kestrelford, so you must get around on foot (*guide_accessibility.md*). The street plan has not changed since the 1200s, making it charming on foot and difficult in a car (*guide_kestrelford.md*).
+```
 
 ## Verdicts
 

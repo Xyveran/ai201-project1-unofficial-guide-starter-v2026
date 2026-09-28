@@ -38,7 +38,7 @@ import sys
 import time
 from pathlib import Path
 from contextlib import contextmanager
-from statistics import median
+from statistics import mean, median
 
 import config
 import questions as qs
@@ -211,18 +211,22 @@ def check_out_of_scope(top_k, threshold, corpus, variant):
 
 
 def spread(values):
-    """One cell of the timing table: the median, and the range behind it.
+    """One cell of the timing table: the median, the range behind it, and the average.
 
-    The median rather than the mean initially chosen. A single slow run — the service
-    having a bad moment, the rate limiter deciding to wait — drags a mean of
-    three somewhere no individual run ever was. This would lead to comparing
-    configurations using a number that describes none of them.
+    The median is the headline figure. A single slow run — the service having
+    a bad moment, the rate limiter deciding to wait — drags a mean of three
+    somewhere no individual run ever was, so the average is reported alongside
+    it rather than in its place, as a secondary signal for how much outliers
+    are pulling the numbers around.
     """
     if not values:
         return "—"
     if len(values) == 1:
         return f"{values[0]:.3f}"
-    return f"{median(values):.3f} ({min(values):.3f}–{max(values):.3f})"
+    return (
+        f"{median(values):.3f} ({min(values):.3f}–{max(values):.3f}), "
+        f"avg {mean(values):.3f}"
+    )
 
 
 def summarize_timings(transcript):
@@ -311,7 +315,7 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
             "",
             f"Produced by `run_eval.py::summarize_timings`, measured with "
             f"`time.perf_counter()`. Each cell is the median across the {n} "
-            f"runs, with the fastest and slowest in brackets.",
+            f"runs, with the fastest and slowest in brackets, plus the average.",
             "",
             "Retrieval runs on your own machine and hardly moves between runs.",
             "Generation is a call to a service, so it is the number that varies",
@@ -336,7 +340,8 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
         lines += [
             "",
             f"Across all {len(every_total)} runs: {sum(every_total):.1f}s of wall "
-            f"clock, median {median(every_total):.3f}s per query.",
+            f"clock, median {median(every_total):.3f}s per query, "
+            f"average {mean(every_total):.3f}s per query.",
             "",
             "⚠️ The first run of the first question carries the cost of loading",
             "the embedding model, which `store.py` does lazily on its first call.",
@@ -371,7 +376,7 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
         "---",
         "",
         "## Real output",
-        "",,
+        "",
         "",
     ]
 
