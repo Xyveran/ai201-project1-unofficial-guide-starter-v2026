@@ -35,10 +35,22 @@ you a scorer; you'd learn nothing from it.
 import argparse
 import datetime as dt
 import sys
+import time
 from pathlib import Path
+from contextlib import contextmanager
+from statistics import median
 
 import config
 import questions as qs
+
+
+@contextmanager
+def timed(into, key):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        into[key] = time.perf_counter() - start
 
 
 def load_scorer():
@@ -57,21 +69,34 @@ def run_once(question: str, top_k, threshold, corpus, variant):
     import gate
     from generate import answer_from_chunks
 
-    results = search(question, top_k=top_k, corpus=corpus, variant=variant)
-    decision = gate.check(results, threshold=threshold)
+    timings = {}
 
-    if not decision.passed:
-        return gate.REFUSAL, results, decision
+    with timed(into=timings, key="total"):
+        with timed(into=timings, key="retrieval"):
+            results = search(question, top_k=top_k, corpus=corpus, variant=variant)
 
-    # cache=False on purpose. Three runs have to be three real answers.
-    answer = answer_from_chunks(question, results, cache=False)
-    return answer, results, decision
+        decision = gate.check(results, threshold=threshold)
+
+        if not decision.passed:
+            return gate.REFUSAL, results, decision, timings
+
+        with timed(into=timings, key="generation"):
+            # cache=False on purpose. Three runs have to be three real answers.
+            answer = answer_from_chunks(question, results, cache=False)
+
+    return answer, results, decision, timings
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run the test questions and log the results.")
-    parser.add_argument("--runs", type=int, default=3, help="runs per question (default 3)")
-    parser.add_argument("--label", default="", help="a name for this run, e.g. 'before'")
+    parser = argparse.ArgumentParser(
+        description="Run the test questions and log the results."
+    )
+    parser.add_argument(
+        "--runs", type=int, default=3, help="runs per question (default 3)"
+    )
+    parser.add_argument(
+        "--label", default="", help="a name for this run, e.g. 'before'"
+    )
     parser.add_argument("--corpus", default=None)
     parser.add_argument("--variant", default="default")
     parser.add_argument("--top-k", type=int, default=None)
@@ -109,7 +134,7 @@ def main():
 
         run_results = []
         for run in range(1, args.runs + 1):
-            answer, results, decision = run_once(
+            answer, results, decision, timings = run_once(
                 question, top_k, threshold, corpus, args.variant
             )
             passed = judge(question, expects, answer, results) if judge else None
@@ -126,6 +151,7 @@ def main():
                     "sources": sorted({r.source for r in results}),
                     "best_distance": decision.best_distance,
                     "gate_passed": decision.passed,
+                    "timings": timings,
                 }
             )
 
@@ -134,7 +160,13 @@ def main():
     gate_rows = check_out_of_scope(top_k, threshold, corpus, args.variant)
 
     write_report(
-        rows, transcript, gate_rows, args, corpus, top_k, threshold,
+        rows,
+        transcript,
+        gate_rows,
+        args,
+        corpus,
+        top_k,
+        threshold,
         scored=judge is not None,
     )
 
@@ -161,8 +193,10 @@ def check_out_of_scope(top_k, threshold, corpus, variant):
         results = search(question, top_k=top_k, corpus=corpus, variant=variant)
         decision = gate.check(results, threshold=threshold)
         refused = not decision.passed
-        print(f"  {'refused' if refused else 'LET THROUGH'}  "
-              f"(best distance {decision.best_distance:.3f})  {question}")
+        print(
+            f"  {'refused' if refused else 'LET THROUGH'}  "
+            f"(best distance {decision.best_distance:.3f})  {question}"
+        )
         rows.append(
             {
                 "question": question,
@@ -174,6 +208,53 @@ def check_out_of_scope(top_k, threshold, corpus, variant):
     kept = sum(r["refused"] for r in rows)
     print(f"  -> gate refused {kept} of {len(rows)}")
     return rows
+
+
+def spread(values):
+    """One cell of the timing table: the median, and the range behind it.
+
+    The median rather than the mean initially chosen. A single slow run — the service
+    having a bad moment, the rate limiter deciding to wait — drags a mean of
+    three somewhere no individual run ever was. This would lead to comparing
+    configurations using a number that describes none of them.
+    """
+    if not values:
+        return "—"
+    if len(values) == 1:
+        return f"{values[0]:.3f}"
+    return f"{median(values):.3f} ({min(values):.3f}–{max(values):.3f})"
+
+
+def summarize_timings(transcript):
+    """Collapse the per-run timings into one row per question.
+
+    The transcript further down has every run in it, which is the evidence, but
+    it is not something you can read a measurement off of. Three runs of the same
+    question differ mostly in how long the model took to reply, so the useful
+    shape is one row per question with the spread still visible.
+
+    Runs the gate refused are counted but kept out of the generation figures.
+    They never reached the model, so there is no generation time to average —
+    folding them in as zeroes would make the system look faster than it is.
+    """
+    by_question = {}
+    for entry in transcript:
+        by_question.setdefault(entry["question"], []).append(entry)
+
+    summary = []
+    for question, entries in by_question.items():
+        generated = [e for e in entries if e["timings"].get("generation") is not None]
+        summary.append(
+            {
+                "question": question,
+                "runs": len(entries),
+                "refused": len(entries) - len(generated),
+                "retrieval": [e["timings"]["retrieval"] for e in entries],
+                "generation": [e["timings"]["generation"] for e in generated],
+                "total": [e["timings"]["total"] for e in entries],
+            }
+        )
+    return summary
 
 
 def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, scored):
@@ -219,6 +300,49 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
             "> the scorer first and re-run.",
         ]
 
+    timing_rows = summarize_timings(transcript)
+    if timing_rows:
+        every_total = [t for row in timing_rows for t in row["total"]]
+        lines += [
+            "",
+            "---",
+            "",
+            "## How long the queries took",
+            "",
+            f"Produced by `run_eval.py::summarize_timings`, measured with "
+            f"`time.perf_counter()`. Each cell is the median across the {n} "
+            f"runs, with the fastest and slowest in brackets.",
+            "",
+            "Retrieval runs on your own machine and hardly moves between runs.",
+            "Generation is a call to a service, so it is the number that varies",
+            "— and it is wall time, not the model's own: the pacing and retry",
+            "waits in `generate.py` happen inside it. End-to-end is the whole",
+            "of `run_once`, which is those two plus the gate.",
+            "",
+            "| Question | Runs | Retrieval (s) | Generation (s) | End-to-end (s) |",
+            "|---|---|---|---|---|",
+        ]
+        for row in timing_rows:
+            question = row["question"].replace("|", "\\|")
+            runs = str(row["runs"])
+            if row["refused"] == row["runs"]:
+                runs += " (all refused)"
+            elif row["refused"]:
+                runs += f" ({row['refused']} refused)"
+            lines.append(
+                f"| {question} | {runs} | {spread(row['retrieval'])} | "
+                f"{spread(row['generation'])} | {spread(row['total'])} |"
+            )
+        lines += [
+            "",
+            f"Across all {len(every_total)} runs: {sum(every_total):.1f}s of wall "
+            f"clock, median {median(every_total):.3f}s per query.",
+            "",
+            "⚠️ The first run of the first question carries the cost of loading",
+            "the embedding model, which `store.py` does lazily on its first call.",
+            "That one retrieval number is not comparable to the others.",
+        ]
+
     if gate_rows:
         refused = sum(r["refused"] for r in gate_rows)
         lines += [
@@ -242,17 +366,27 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
             verdict = "refused" if row["refused"] else "**let through**"
             lines.append(f"| {question} | {row['best_distance']:.3f} | {verdict} |")
 
-    lines += ["", "---", "", "## Real output", "",
-              "This is what the system actually produced. Paste the relevant parts",
-              "into your README underneath the table — the rubric asks for real",
-              "output as text, not a description of it.", ""]
+    lines += [
+        "",
+        "---",
+        "",
+        "## Real output",
+        "",,
+        "",
+    ]
 
     for entry in transcript:
+        gen_time = entry["timings"].get("generation")
+        gen_text = f"{gen_time:.4f}s" if gen_time is not None else "—"
+
         lines += [
             f"### {entry['question']} — run {entry['run']}",
             "",
             f"- Best distance: {entry['best_distance']:.4f} "
             f"({'passed' if entry['gate_passed'] else 'refused by'} the gate)",
+            f"- Total time: {entry['timings']['total']:.4f}s",
+            f"- Retrieval time: {entry['timings']['retrieval']:.4f}s ",
+            f"- Generation time: {gen_text}",
             f"- Sources retrieved: {', '.join(entry['sources']) or 'none'}",
             "",
             "```",

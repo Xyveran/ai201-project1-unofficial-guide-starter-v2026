@@ -29,15 +29,15 @@ QUESTIONS = [
     },
     {
         "question": "What is there to see in Pellew Sands?",
-        "expects": "Pier, municipal gardens, beach.",
+        "expects": "Pier, municipal gardens, beach",
     },
     {
-        "question": "What should I look out for when traveling by bus?",
-        "expects": "Services are mainly during the weekday daytimes.",
+        "question": "How long does it take to get to Thornby Wells from the train hub?",
+        "expects": "25 minutes",
     },
     {
         "question": "How can I get around Kestrelford?",
-        "expects": "Walking, no buses in town.",
+        "expects": "foot",
     },
 ]
 
