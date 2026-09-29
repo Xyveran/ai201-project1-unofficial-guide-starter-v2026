@@ -251,12 +251,14 @@ def generate(prompt: str, system: str | None = None, cache: bool = True) -> str:
             message = str(exc).lower()
             rate_limited = (
                 "429" in message
-                or "resource" in message and "exhaust" in message
-                or "rate" in message and "limit" in message
+                or "resource" in message
+                and "exhaust" in message
+                or "rate" in message
+                and "limit" in message
             )
             if not rate_limited:
                 raise
-            backoff = 2 ** attempt
+            backoff = 2**attempt
             print(
                 f"  [rate limit] service pushed back. Retrying in {backoff}s "
                 f"(attempt {attempt + 1} of {config.MAX_RETRIES}).",
@@ -291,9 +293,7 @@ def build_prompt(question: str, results) -> str:
     this returns. Reading it once is the fastest way to see that retrieval,
     not the model, decides what an answer can possibly be based on.
     """
-    context = "\n\n".join(
-        f"[from {r.source}]\n{r.text}" for r in results
-    )
+    context = "\n\n".join(f"[from {r.source}]\n{r.text}" for r in results)
     return (
         f"Documents:\n\n{context}\n\n"
         f"---\n\nQuestion: {question}\n\n"

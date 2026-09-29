@@ -325,9 +325,13 @@ One thing the change did not fix is that `generate.py` builds its Gemini client 
 
      Milestone 5. -->
 
+All 5 criteria are being met now, but there's still space to clean up measurements. The first call to generate a response, is also the call that gets to carry the weight of instantiating the Gemini client. This is not as significant a burden as the document store, but does still augment the measured time for a single question in the same way. I think I could move this outside of the scope of measurement similar to the document store warm-up. However, building and using the client is more tightly coupled into the system and would take a more significant refactor to remove from the measurement. For this case, it would be much more work for much less benefit.
+
 ## What I'd Do Differently
 
 <!-- Knowing what you know now — which of your five criteria would you write
      differently, and why?
 
      Milestone 5. -->
+
+As part of this process I found issues with measuring criterion 5, and made changes to it and the system for it to be more accurately measured. I was not sure what benchmark would be ideal to aim for, so I settled for a more generous time of 4 seconds average expecting that it would catch egregious issues. After testing, I found that average times were very susceptible to service-related outliers, and that reasonable design choices meant the investigation of "end-to-end" latency missed the goal of query -> response time.
