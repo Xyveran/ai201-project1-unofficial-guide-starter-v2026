@@ -22,7 +22,8 @@ pipeline earns credit; *"80% seemed reasonable"* does not.
 For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
-**Why this target:** The test questions are very document-specific, so a single miss on retrieved chunks is acceptable.
+**Why this target:** The test questions are very document-specific, 
+so a single miss on retrieved chunks is acceptable.
 
 ---
 
@@ -30,7 +31,9 @@ contains the answer.
 
 Every answer the system produces names at least one source document.
 
-**Why this target:** Every answer generated needs to be grounded in the retrieved documents. If not, the model is only answering from training data or hallucinating.
+**Why this target:** Every answer generated needs to be grounded in the 
+retrieved documents. If not, the model is only answering from training data 
+or hallucinating.
 
 ---
 
@@ -45,7 +48,10 @@ in at least 4 of 5 tries.
      what happened into your run log. Swap them for your own if you'd rather —
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
-**Why this target:** Making model calls to try answering a question that the docs don't support is a waste of resources. 4 out of 5 tries is an acceptable success rate for blocking these questions.
+**Why this target:** Making model calls to try answering a question that the docs 
+don't support is a waste of resources. 4 out of 5 tries is an acceptable success 
+rate for blocking these questions.
+
 <!-- What did your distances look like when you set the cutoff in Milestone 4?
      Was there a clean gap, or did the two groups overlap? -->
 
@@ -67,7 +73,9 @@ At least 2 complete, untruncated sentences are gathered for each collected chunk
        - "No chunk is shorter than 200 characters, since anything below that
           in my corpus turned out to be a heading with no content under it." -->
 
-**Why this target:** Less context could lead to providing partial answers or omitting important additional details. 2 sentences is also the least content I saw under any individual heading in the city_guides corpus.
+**Why this target:** Less context could lead to providing partial answers or 
+omitting important additional details. 2 sentences is also the least content I 
+saw under any individual heading in the city_guides corpus.
 
 ---
 
@@ -83,7 +91,24 @@ The average end-to-end latency of the 5 test questions should be under 4 seconds
      present — anything, as long as it names a number or an observable
      outcome. -->
 
-**Why this target:** Aiming for an average latency of 4 seconds sets a standard that's quick enough to feel responsive while using.
+**Why this target:** Aiming for an average latency of 4 seconds sets a standard 
+that's quick enough to feel responsive while using.
+
+> **Revised in Unit 2**: The median latency between a user's query and receiving 
+> a response for the 5 test questions after document store construction should be 
+> under 4 seconds.
+>
+> **Why Revised**: Two variables I didn't originally take in account were: 
+> the load-chunk-embed process for each eval run, and 
+> inconsistent model access through the Gemini API. The time burden of loading 
+> documents, chunking them, and embedding the chunks rests on the first run of the 
+> first question in each run of the evaluation. This has the effect of dramatically 
+> skewing one set's average latency, and should be omitted when measuring. In a 
+> similar vein, timely responses from a vendor model are not a guarantee. Latency 
+> can randomly spike on a question due to high model demand and waiting for retries. 
+> Unlike the time spent performing the load-chunk-embed, I believe the criteria should 
+> treat some model access inconsistency as a reality to work with. Shifting our goal 
+> time from average to median should mitigate the impact of outlier times.
 
 ---
 

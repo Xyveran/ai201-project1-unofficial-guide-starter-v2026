@@ -228,11 +228,12 @@ There is no transport within the town of Kestrelford, so you must get around on 
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | For at least 4 of my 5 test questions, the retrieved chunks include one that contains the answer | MET | From reading the retrieved chunks, I was able to determine that the answer was among them for each test. |
+| 2 | Every answer the system produces names at least one source document | MET | Alongside answers, I was able to see that the system included at least one source document even in cases where the answer was not what I expected. |
+| 3 | When I ask a question my documents clearly don't cover, the relevance gate stops it and the system returns "I don't have enough information about that" — in at least 4 of 5 tries | MET | Within the logged data, I was able to verify that each of the out-of-scope questions was blocked by the relevance gate. |
+| 4 | At least 2 complete, untruncated sentences are gathered for each collected chunk | MET | Inspecting the retrieved chunks for each test, I was able to verify the met length requirement, and that no chunks were being unintentionally cut short. |
+| 5 | The average end-to-end latency of the 5 test questions should be under 4 seconds | MISSED | Across multiple testing runs, end-to-end latency was inconsistent at meeting the criteria. |
+
 
 ## Diagnoses
 
