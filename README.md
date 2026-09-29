@@ -187,7 +187,7 @@ I hardened the implementation to fix these potential issues. Neither of these wo
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET  |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
 | 2. Every answer names a source | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
 | 3. Gate stops out-of-corpus questions | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
 | 4. At least 2 complete, untruncated sentences are gathered for each collected chunk.| 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
@@ -254,6 +254,13 @@ There is no transport within the town of Kestrelford, so you must get around on 
      low, and which one you'd tighten and to what.
 
      Milestone 3. -->
+
+For criterion 5, average end-to-end latency isn't a fully trustworthy measure in this system.
+
+Time required to load documents, chunk them, and embed the chunks is only applied to one end-to-end question of one run. This causes average end-to-end latency to be skewed for a run in a way that isn't reflective of the system in every other run. A miss caused by this doesn't say that the system's performance is poor, it only shows that the time to load, chunk, and embed has to be taken somewhere.
+
+Average end-to-end latency's reliability is also diminished when the currently used Gemini model is not fully and immediately available. Any time spent on retries during answer generation is time added to latency, caused by external factors. Availability can directly move the needle but in a way that suggests to run tests at a different time, rather than suggest that the generation process has room for improvement.
+
 
 ## The Improvement
 
