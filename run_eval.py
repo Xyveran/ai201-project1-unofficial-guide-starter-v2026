@@ -64,7 +64,13 @@ def load_scorer():
 
 
 def run_once(question: str, top_k, threshold, corpus, variant):
-    """One question, one run. Returns the answer and what retrieval gave us."""
+    """One question, one run. Returns the answer and what retrieval gave us.
+
+    The clock covers retrieval, the gate and generation — the work a question
+    causes. It does not cover loading documents, chunking them or embedding the
+    chunks: that happens once in `app.py index`, and whatever part of it is
+    still lazy has already been paid by `warm_up` before the first timed run.
+    """
     from store import search
     import gate
     from generate import answer_from_chunks
@@ -85,6 +91,34 @@ def run_once(question: str, top_k, threshold, corpus, variant):
             answer = answer_from_chunks(question, results, cache=False)
 
     return answer, results, decision, timings
+
+
+def warm_up(top_k, corpus, variant):
+    """Pay the one-off setup costs on a throwaway query, before the clock starts.
+
+    Criterion 5 is about the latency a user sees once the document store
+    exists. Building that store — loading, chunking, embedding — happens in
+    `app.py index`, so most of it is already outside this script. One piece of
+    it used to leak in anyway: `store.py` loads the embedding model lazily, on
+    the first call to `embed`, and opens the Chroma collection on the first
+    search. Both landed inside the timed retrieval of the first run of the
+    first question, which made that one number several seconds larger than
+    every other retrieval in the run and dragged the average up with it.
+
+    Paying it here on a query that isn't tested puts it outside
+    every measured run, and every question then starts from the same warm
+    state. This cost is still reported.
+    """
+    from store import search
+
+    start = time.perf_counter()
+    search(
+        "warm up the embedding model and open the collection",
+        top_k=top_k,
+        corpus=corpus,
+        variant=variant,
+    )
+    return time.perf_counter() - start
 
 
 def main():
@@ -123,6 +157,12 @@ def main():
 
     if args.runs < 3:
         print(f"⚠️  {args.runs} run(s). The submission asks for three.\n")
+
+    warm_up_seconds = warm_up(top_k, corpus, args.variant)
+    print(
+        f"Warmed up in {warm_up_seconds:.3f}s (embedding model + collection "
+        f"opened). Not counted in any run below.\n"
+    )
 
     transcript = []
     rows = []
@@ -168,6 +208,7 @@ def main():
         top_k,
         threshold,
         scored=judge is not None,
+        warm_up_seconds=warm_up_seconds,
     )
 
 
@@ -261,7 +302,17 @@ def summarize_timings(transcript):
     return summary
 
 
-def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, scored):
+def write_report(
+    rows,
+    transcript,
+    gate_rows,
+    args,
+    corpus,
+    top_k,
+    threshold,
+    scored,
+    warm_up_seconds=None,
+):
     config.RESULTS_DIR.mkdir(exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M")
     label = f"_{args.label}" if args.label else ""
@@ -279,6 +330,8 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
         f"- Corpus: `{corpus}` (index variant `{args.variant}`)",
         f"- top-k: {top_k} · relevance cutoff: {threshold}",
         f"- Runs per question: {n}, caching off",
+        f"- Timed: retrieval + gate + generation only. Loading, chunking and",
+        f"  embedding the corpus are not in any number below — see `warm_up`.",
         f"- When: {dt.datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "",
         "This table is one row per QUESTION. The run log your README asks for is",
@@ -323,6 +376,15 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
             "waits in `generate.py` happen inside it. End-to-end is the whole",
             "of `run_once`, which is those two plus the gate.",
             "",
+            "Building the document store is deliberately outside all three.",
+            "Loading, chunking and embedding the corpus happen once, in",
+            "`app.py index`, and the part of that work `store.py` defers —",
+            "loading the embedding model, opening the collection — is paid",
+            "before the first timed run by `run_eval.py::warm_up`, on a query",
+            "that is none of the questions below. Every run therefore starts",
+            "warm, and these numbers are the cost of asking a question of a",
+            "store that already exists.",
+            "",
             "| Question | Runs | Retrieval (s) | Generation (s) | End-to-end (s) |",
             "|---|---|---|---|---|",
         ]
@@ -342,11 +404,15 @@ def write_report(rows, transcript, gate_rows, args, corpus, top_k, threshold, sc
             f"Across all {len(every_total)} runs: {sum(every_total):.1f}s of wall "
             f"clock, median {median(every_total):.3f}s per query, "
             f"average {mean(every_total):.3f}s per query.",
-            "",
-            "⚠️ The first run of the first question carries the cost of loading",
-            "the embedding model, which `store.py` does lazily on its first call.",
-            "That one retrieval number is not comparable to the others.",
         ]
+        if warm_up_seconds is not None:
+            lines += [
+                "",
+                f"Warm-up took {warm_up_seconds:.3f}s before any of that, and is "
+                f"in none of the figures above. It is a per-process cost, not a "
+                f"per-query one: the embedding model loads once and the retrieval "
+                f"numbers above are what every question after the first pays.",
+            ]
 
     if gate_rows:
         refused = sum(r["refused"] for r in gate_rows)

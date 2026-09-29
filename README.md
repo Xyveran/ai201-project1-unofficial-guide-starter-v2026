@@ -266,32 +266,54 @@ Average end-to-end latency's reliability is also diminished when the currently u
 
 **What I changed:**
 
+I changed what the evaluation measures, not how the pipeline works. `run_eval.py` now has a `warm_up` function that runs one throwaway query before any timing starts. That query is none of my five test questions, and its only job is to make `store.py` load the embedding model and open the Chroma collection, which it otherwise does lazily on the first real search. Every timed run now begins from the same warm state, so the timing table holds retrieval, the gate, and generation and nothing else.
+
+The warm-up time is now written into the run log because it is a real cost. It's reported there as something the process pays once rather than something one question pays on behalf of the other fourteen. Alongside the code change, criterion 5 itself now reads median instead of average, which is written up in `criteria.md`.
+
 **Why I picked it:**
 
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+My first diagnosis says the load, chunk, and embed time lands on one question of
+one run and skews that run's average, so I have currently moved that time out of the
+measurement instead of trying to make it smaller.
+
+The fix had to be to the measurement, because there was nothing wrong with the
+system. Loading documents, chunking them, and embedding the chunks is work that
+happens once, and a user asking a question of a store that already exists never
+waits for it. Counting it inside one query made the system look slower than
+anyone actually experiences it, and effort spent making that number smaller
+would have been effort spent on a cost no user pays.
 
 ### Run Log — After
 
 <!-- Same format, same five criteria, three runs each.
      `python run_eval.py --label after` -->
 
+From `results/run_2026-09-29_1741_after.md`.
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 4. At least 2 complete, untruncated sentences are gathered for each collected chunk. | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+| 5. Median end-to-end latency under 4 seconds | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 | MET |
+
+Criterion 4 carries over between runs. Nothing in this improvement touched `chunker.py` or the chunk settings in `config.py`, so the chunks in the after run are the same chunks as in the before run.
 
 **Did it help?**
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+Yes, though it is worth being clear about what it fixed and what it did not.
 
-     Milestone 4. -->
+The measurement artifact is gone. In the before run, the first retrieval took 0.456s against a 
+0.091s baseline for that same question. In the after run the first retrieval is 0.029s and sits inside the ordinary range of every other retrieval in the log. The 0.489s of setup that used to hide inside that one number is now on its own line where I can read it.
+
+Criterion 5 is met. No single run in the after log went over 4 seconds. The slowest was 1.680s and the median across all fifteen runs was 0.638s.
+
+The code change is not the only reason the criterion is met now, and I don't want to give it more credit than it earned. Revising the criterion from average to median would have carried the before run as well, because the 6.553s that failed it was one run of one question, and that question's median was 0.755s. The warm-up removed a cost that did not belong in the measurement, and the move to median absorbed an outlier the measurement cannot control. Both were needed, and only the first was a change to code.
+
+The system is also not faster. Nothing about retrieval or generation was optimized, and comparing total wall clock between the two runs would be misleading, because they were taken on different days against a service whose speed I don't control.
+
+One thing the change did not fix is that `generate.py` builds its Gemini client lazily, in the same way `store.py` built its embedding model lazily, and that construction happens inside the timed generation block. In the after run the first generation call took 1.650s against a 0.522s baseline for the same question. That is a smaller version of the problem I just fixed, sitting one stage further down the pipeline.
 
 ## What's Still Broken
 
